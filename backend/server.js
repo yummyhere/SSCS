@@ -17,7 +17,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: process.env.FRONTEND_URL || true,
   credentials: true
 }));
 app.use(express.json());
@@ -47,20 +47,28 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-// Connect to MongoDB before accepting requests that depend on persistence.
+// Connect to MongoDB
 const PORT = process.env.PORT || 5000;
 const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ecommerce';
 
-mongoose.connect(mongoUri)
-  .then(() => {
+let isConnected = false;
+const connectDB = async () => {
+  if (isConnected) return;
+  try {
+    const db = await mongoose.connect(mongoUri);
+    isConnected = db.connections[0].readyState === 1;
     console.log('✓ MongoDB connected');
-    app.listen(PORT, () => {
-      console.log(`E-Commerce backend running on port ${PORT}`);
-    });
-  })
-  .catch((error) => {
+  } catch (error) {
     console.error(`MongoDB connection failed: ${error.message}`);
-    process.exit(1);
+  }
+};
+
+connectDB();
+
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`E-Commerce backend running on port ${PORT}`);
   });
+}
 
 export default app;
