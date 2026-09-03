@@ -1,8 +1,17 @@
+import dns from 'dns';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { errorHandler } from './middleware/auth.js';
+
+// Resolve SRV records reliably
+try {
+  dns.setServers(['8.8.8.8', '8.8.4.4']);
+} catch {
+  // ignore if not supported
+}
+
 
 // Import routes
 import authRoutes from './routes/auth.js';
