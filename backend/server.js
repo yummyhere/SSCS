@@ -25,12 +25,43 @@ dotenv.config();
 const app = express();
 
 // Middleware
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5174',
+  'http://localhost:3000'
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || true,
+  origin: (origin, callback) => {
+    // allow requests with no origin (like mobile apps, curl, postman)
+    if (!origin) return callback(null, true);
+
+    if (
+      process.env.NODE_ENV !== 'production' ||
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+    ) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Blocked by CORS'));
+  },
   credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Ensure DB is connected before handling API requests
+app.use(async (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    await connectDB();
+  }
+  next();
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
