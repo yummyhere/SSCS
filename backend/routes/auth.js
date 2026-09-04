@@ -8,6 +8,7 @@ const router = express.Router();
 
 // Designate admin emails - only these emails get admin privileges
 const ADMIN_EMAILS = ['yamnafatima.tms@gmail.com'];
+const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_key_change_in_production';
 
 /**
  * Sign up endpoint
@@ -47,7 +48,7 @@ router.post('/signup', async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -100,7 +101,7 @@ router.post('/login', async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: '7d' }
     );
 

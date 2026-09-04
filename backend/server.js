@@ -12,7 +12,6 @@ try {
   // ignore if not supported
 }
 
-
 // Import routes
 import authRoutes from './routes/auth.js';
 import productRoutes from './routes/products.js';
@@ -23,6 +22,31 @@ import adminRoutes from './routes/admin.js';
 dotenv.config();
 
 const app = express();
+
+// Database configuration with reliable Atlas fallback
+const DEFAULT_MONGO_URI = 'mongodb+srv://yamnafatima.tms_db_user:KDd44mreDZBc6vDP@cluster0.hphlk2m.mongodb.net/ecommerce?retryWrites=true&w=majority';
+const mongoUri = process.env.MONGODB_URI || DEFAULT_MONGO_URI;
+
+let isConnected = false;
+const connectDB = async () => {
+  if (isConnected || mongoose.connection.readyState === 1) {
+    isConnected = true;
+    return;
+  }
+  try {
+    const db = await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 8000,
+    });
+    isConnected = db.connections[0].readyState === 1;
+    console.log('✓ MongoDB connected');
+  } catch (error) {
+    console.error(`MongoDB connection failed: ${error.message}`);
+    throw error;
+  }
+};
+
+// Initial connection attempt
+connectDB().catch(() => {});
 
 // Middleware
 const allowedOrigins = [
@@ -57,10 +81,18 @@ app.use(express.urlencoded({ extended: true }));
 
 // Ensure DB is connected before handling API requests
 app.use(async (req, res, next) => {
-  if (mongoose.connection.readyState !== 1) {
-    await connectDB();
+  if (req.path === '/api/health') return next();
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB();
+    }
+    next();
+  } catch (err) {
+    return res.status(503).json({
+      message: 'Database connection failed. Please check MongoDB Atlas IP access and credentials.',
+      error: err.message
+    });
   }
-  next();
 });
 
 // Health check
@@ -87,23 +119,7 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-// Connect to MongoDB
 const PORT = process.env.PORT || 5000;
-const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ecommerce';
-
-let isConnected = false;
-const connectDB = async () => {
-  if (isConnected) return;
-  try {
-    const db = await mongoose.connect(mongoUri);
-    isConnected = db.connections[0].readyState === 1;
-    console.log('✓ MongoDB connected');
-  } catch (error) {
-    console.error(`MongoDB connection failed: ${error.message}`);
-  }
-};
-
-connectDB();
 
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
   app.listen(PORT, () => {
